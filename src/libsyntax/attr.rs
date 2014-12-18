@@ -334,8 +334,17 @@ pub fn cfg_matches(diagnostic: &SpanHandler, cfgs: &[P<MetaItem>], cfg: &ast::Me
         ast::MetaList(ref pred, _) => {
             diagnostic.span_err(cfg.span, format!("invalid predicate `{}`", pred)[]);
             false
+        }
+        ast::MetaWord(ref w) => {
+            // We have either a path or a word. It would be nice to have a way
+            // for us to decide if this is a path or not without looking for the
+            // `::`, because that would let us support checking for local symbols
+            // however I feel like that might not be useful therefore the `::` kind
+            // of serves that purpose for the time at least.
+            println!("MetaWord {}", w);
+            contains(cfgs, cfg)
         },
-        ast::MetaWord(_) | ast::MetaNameValue(..) => contains(cfgs, cfg),
+        ast::MetaNameValue(..) => contains(cfgs, cfg)
     }
 }
 

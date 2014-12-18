@@ -176,7 +176,7 @@ impl<'a> ParserAttr for Parser<'a> {
         }
 
         let lo = self.span.lo;
-        let ident = self.parse_ident();
+        let ident = self.parse_identorpath();
         let name = self.id_to_interned_str(ident);
         match self.token {
             token::Eq => {

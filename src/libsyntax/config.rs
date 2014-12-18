@@ -14,6 +14,7 @@ use fold::Folder;
 use {ast, fold, attr};
 use codemap::Spanned;
 use ptr::P;
+use ast::ViewItem;
 
 use util::small_vector::SmallVector;
 
@@ -21,13 +22,24 @@ use util::small_vector::SmallVector;
 /// configuration.
 struct Context<F> where F: FnMut(&[ast::Attribute]) -> bool {
     in_cfg: F,
+
 }
 
 // Support conditional compilation by transforming the AST, stripping out
 // any items that do not belong in the current configuration
 pub fn strip_unconfigured_items(diagnostic: &SpanHandler, krate: ast::Crate) -> ast::Crate {
     let config = krate.config.clone();
-    strip_items(krate, |attrs| in_cfg(diagnostic, config.as_slice(), attrs))
+
+    let view_items = krate.module.view_items.clone();
+
+    println!("inner:{}", krate.module.inner);
+    for item in view_items.iter() {
+        println!("item:{}", item.node);
+    }
+    
+    let r = strip_items(krate, |attrs| in_cfg(diagnostic, config.as_slice(), attrs, &view_items));
+
+    r
 }
 
 impl<F> fold::Folder for Context<F> where F: FnMut(&[ast::Attribute]) -> bool {
@@ -60,6 +72,7 @@ pub fn strip_items<F>(krate: ast::Crate, in_cfg: F) -> ast::Crate where
     let mut ctxt = Context {
         in_cfg: in_cfg,
     };
+
     ctxt.fold_crate(krate)
 }
 
@@ -294,7 +307,7 @@ fn impl_item_in_cfg<F>(cx: &mut Context<F>, impl_item: &ast::ImplItem) -> bool w
 
 // Determine if an item should be translated in the current crate
 // configuration based on the item's attributes
-fn in_cfg(diagnostic: &SpanHandler, cfg: &[P<ast::MetaItem>], attrs: &[ast::Attribute]) -> bool {
+fn in_cfg(diagnostic: &SpanHandler, cfg: &[P<ast::MetaItem>], attrs: &[ast::Attribute], view_items: &Vec<ViewItem>) -> bool {
     attrs.iter().all(|attr| {
         let mis = match attr.node.value.node {
             ast::MetaList(_, ref mis) if attr.check_name("cfg") => mis,

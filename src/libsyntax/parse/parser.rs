@@ -89,6 +89,7 @@ use std::num::Float;
 use std::rc::Rc;
 use std::iter;
 use std::slice;
+use std::string::String;
 
 bitflags! {
     flags Restrictions: u8 {
@@ -523,6 +524,45 @@ impl<'a> Parser<'a> {
     pub fn commit_stmt_expecting(&mut self, edible: token::Token) {
         self.commit_stmt(&[edible], &[])
     }
+
+    pub fn parse_identorpath(&mut self) -> ast::Ident {
+        let mut s: Vec<ast::Ident> = Vec::new();
+        loop {
+            match self.token {
+                token::Ident(i, _) => {
+                    // make sure valid identification
+                    self.check_strict_keywords();
+                    self.check_reserved_keywords(); 
+                    s.push(i);
+                    self.bump();
+                }
+                token::Interpolated(token::NtIdent(..)) => {
+                    self.bug("ident interpolation not converted to real token");
+                }
+                token::ModSep => {
+                    self.bump();
+                }
+                _ => {
+                    if s.len() > 1 {
+                        let mut buf: String = String::new();
+                        for n in range(0, s.len() - 1) {
+                            let i = s[n];
+                            buf.push_str(i.as_str());
+                            buf.push_str("::");
+                        }
+                        buf.push_str(s[s.len() - 1].as_str());
+                        return token::str_to_ident(buf.as_slice());
+                    } else {
+                        if s.len() < 1 {
+                            panic!("not sure what to do! --kmcguire")
+                        }
+                        // single item is indentifier
+                        return s[0];
+                    }
+                }
+            }
+        }
+    }    
 
     pub fn parse_ident(&mut self) -> ast::Ident {
         self.check_strict_keywords();
